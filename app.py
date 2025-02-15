@@ -92,17 +92,24 @@ headers = {
 }
 
 function_definitions_llm = [
-    {
+   {
         "name": "A1",
-        "description": "Run a Python script from a given URL, passing an email as the argument.",
+        "description": "Install 'uv' (if not already installed) and run a Python script from a specified URL, passing the user's email as an argument. This script generates data files required for subsequent tasks.",
         "parameters": {
             "type": "object",
             "properties": {
-                # "filename": {"type": "string", "pattern": r"https?://.*\.py"},
-                # "targetfile": {"type": "string", "pattern": r".*/(.*\.py)"},
-                "email": {"type": "string", "pattern": r"[\w\.-]+@[\w\.-]+\.\w+"}
+                "script_url": {
+                    "type": "string",
+                    "pattern": "https?://.*\\.py",
+                    "description": "The URL of the Python script to be executed."
+                },
+                "email": {
+                    "type": "string",
+                    "pattern": "[\\w\\.-]+@[\\w\\.-]+\\.\\w+",
+                    "description": "The email address to be passed as an argument to the script."
+                }
             },
-            "required": ["filename", "targetfile", "email"]
+            "required": ["script_url", "email"]
         }
     },
     {
