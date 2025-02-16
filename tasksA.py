@@ -6,8 +6,14 @@ import json
 from pathlib import Path
 import os
 import requests
+import httpx
+import asyncio
 from scipy.spatial.distance import cosine
 from dotenv import load_dotenv
+import base64
+from fastapi import HTTPException
+
+
 
 load_dotenv()
 
@@ -120,7 +126,6 @@ def A7(filename='/data/email.txt', output_file='/data/email-sender.txt'):
     with open(output_file, 'w') as file:
         file.write(sender_email)
 
-import base64
 def png_to_base64(image_path):
     with open(image_path, "rb") as image_file:
         base64_string = base64.b64encode(image_file.read()).decode('utf-8')
@@ -209,26 +214,38 @@ def A8(filename='/data/credit_card.txt', image_path='/data/credit_card.png'):
 
 
 
-def get_embedding(text):
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {AIPROXY_TOKEN}"
-    }
-    data = {
-        "model": "text-embedding-3-small",
-        "input": [text]
-    }
-    response = requests.post("http://aiproxy.sanand.workers.dev/openai/v1/embeddings", headers=headers, data=json.dumps(data))
-    response.raise_for_status()
-    return response.json()["data"][0]["embedding"]
+# def get_embedding(text):
+#     headers = {
+#         "Content-Type": "application/json",
+#         "Authorization": f"Bearer {AIPROXY_TOKEN}"
+#     }
+#     data = {
+#         "model": "text-embedding-3-small",
+#         "input": [text]
+#     }
+#     response = requests.post("http://aiproxy.sanand.workers.dev/openai/v1/embeddings", headers=headers, data=json.dumps(data))
+#     response.raise_for_status()
+#     return response.json()["data"][0]["embedding"]
 
-def A9(filename='/data/comments.txt', output_filename='/data/comments-similar.txt'):
+async def get_embedding(text: str):
+    """Get embedding vector for text using OpenAI's API."""
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://api.openai.com/v1/embeddings",
+            headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"},
+            json={"model": "text-embedding-3-small", "input": text}
+        )
+        return response.json()["data"][0]["embedding"]
+
+async def A9(filename='/data/comments.txt', output_filename='/data/comments-similar.txt'):
     # Read comments
+    print(f"filename: {filename}, output_filename: {output_filename}") #Debug
     with open(filename, 'r') as f:
         comments = [line.strip() for line in f.readlines()]
 
-    # Get embeddings for all comments
-    embeddings = [get_embedding(comment) for comment in comments]
+    # Get embeddings asynchronously
+    print(comments) #Debug
+    embeddings = await asyncio.gather(*[get_embedding(comment) for comment in comments])
 
     # Find the most similar pair
     min_distance = float('inf')
@@ -245,6 +262,7 @@ def A9(filename='/data/comments.txt', output_filename='/data/comments-similar.tx
     with open(output_filename, 'w') as f:
         f.write(most_similar[0] + '\n')
         f.write(most_similar[1] + '\n')
+
 
 def A10(filename='/data/ticket-sales.db', output_filename='/data/ticket-sales-gold.txt', query="SELECT SUM(units * price) FROM tickets WHERE type = 'Gold'"):
     # Connect to the SQLite database

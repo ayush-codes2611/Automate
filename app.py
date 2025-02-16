@@ -1,5 +1,6 @@
-# app.py
+#app.py
 # /// script
+# requires-python = ">=3.13" 
 # dependencies = [
 #   "requests",
 #   "fastapi",
@@ -12,9 +13,15 @@
 #   "python-dotenv",
 #   "httpx",
 #   "markdown",
-#   "duckdb"
+#   "duckdb",
+#   "pillow",
+#   "beautifulsoup4",
+#   "whisper",
+#   "json5",
+#   "pathlib"
 # ]
 # ///
+
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import PlainTextResponse, JSONResponse
@@ -27,6 +34,8 @@ import os
 import re
 import httpx
 import json
+
+
 
 app = FastAPI()
 
@@ -156,51 +165,31 @@ function_definitions_llm = [
         }
     },
     {
-        "name": "A5",
-        "description": "Retrieve the most recent log files from a directory and save their content to an output file.",
+        "name": "B6",
+        "description": "Extract data from a website and save it as JSON or CSV.",
         "parameters": {
             "type": "object",
             "properties": {
-                "log_dir_path": {
+                "url": {
                     "type": "string",
-                    "pattern": r".*/logs",
-                    "default": "/data/logs"
+                    "pattern": "^(https?:\\/\\/)(?!localhost|127\\.0\\.0\\.1|internal).*",
+                    "description": "Publicly accessible URL to scrape (must not be local/internal)."
                 },
-                "output_file_path": {
+                "data_type": {
                     "type": "string",
-                    "pattern": r".*/(.*\.txt)",
-                    "default": "/data/logs-recent.txt"
+                    "enum": ["text", "links", "tables"],
+                    "description": "Type of data to extract: plain text, links, or tables."
                 },
-                "num_files": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "default": 10
+                "output_filename": {
+                    "type": "string",
+                    "pattern": "^/data/.*\\.(json|csv)$",
+                    "description": "Path to save scraped data (must be inside /data/)."
                 }
             },
-            "required": ["log_dir_path", "output_file_path", "num_files"]
+            "required": ["url", "data_type", "output_filename"]
         }
     },
     {
-        "name": "A6",
-        "description": "Generate an index of documents from a directory and save it as a JSON file.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "doc_dir_path": {
-                    "type": "string",
-                    "pattern": r".*/docs",
-                    "default": "/data/docs"
-                },
-                "output_file_path": {
-                    "type": "string",
-                    "pattern": r".*/(.*\.json)",
-                    "default": "/data/docs/index.json"
-                }
-            },
-            "required": ["doc_dir_path", "output_file_path"]
-        }
-    },
-   {
         "name": "A7",
         "description": "Extract the sender's email address from a text file and save it to an output file. Ensure that the correct argument names are used exactly as specified: 'filename' and 'output_file'. Do NOT alter the argument names (e.g., do NOT use 'output file' instead of 'output_file').",
         "parameters": {
@@ -246,24 +235,23 @@ function_definitions_llm = [
 
     {
         "name": "A9",
-        "description": "Find similar comments from a text file and save them to an output file.",
+        "description": "Identify the source and destination files for finding similar comments.",
         "parameters": {
             "type": "object",
             "properties": {
                 "filename": {
                     "type": "string",
-                    "pattern": r".*/(.*\.txt)",
-                    "default": "/data/comments.txt"
+                    "description": "Path to the input file containing comments."
                 },
                 "output_filename": {
                     "type": "string",
-                    "pattern": r".*/(.*\.txt)",
-                    "default": "/data/comments-similar.txt"
+                    "description": "Path to the output file where the most similar comments will be saved."
                 }
             },
             "required": ["filename", "output_filename"]
         }
     },
+
     {
         "name": "A10",
         "description": "Identify high-value (gold) ticket sales from a database and save them to a text file.",
@@ -289,64 +277,147 @@ function_definitions_llm = [
         }
     },
     {
-        "name": "B12",
-        "description": "Check if filepath starts with /data",
+        "name": "B1",
+        "description": "Ensures the task does not access content outside /data",
         "parameters": {
             "type": "object",
             "properties": {
-                "filepath": {
+                "task_description": {
                     "type": "string",
-                    "pattern": r"^/data/.*",
-                    # "description": "Filepath must start with /data to ensure secure access."
+                    "description": "A plain-English task request. The system will validate that it does not attempt to access content outside /data."
                 }
             },
-            "required": ["filepath"]
+            "required": ["task_description"]
         }
     },
+    {
+        "name": "B2",
+        "description": "Ensure that no file or directory is deleted anywhere in the system, even if explicitly requested.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "task_description": {
+                    "type": "string",
+                    "description": "A plain-English task description provided by the user."
+                }
+            },
+            "required": ["task_description"]
+        }
+    },
+    # {
+    #     "name": "B3",
+    #     "description": "Fetch data from an API and save it to a file.",
+    #     "parameters": {
+    #         "type": "object",
+    #         "properties": {
+    #             "api_url": {
+    #                 "type": "string",
+    #                 "pattern": "^https?://.*",
+    #                 "description": "The API endpoint to fetch data from."
+    #             },
+    #             "output_filename": {
+    #                 "type": "string",
+    #                 "pattern": "^/data/.*",
+    #                 "default": "/data/api-output.json",
+    #                 "description": "Path to save the fetched data."
+    #             },
+    #             "headers": {
+    #                 "type": "object",
+    #                 "additionalProperties": { "type": "string" },
+    #                 "description": "Optional headers to include in the API request."
+    #             }
+    #         },
+    #         "required": ["api_url", "output_filename"]
+    #     }
+    # },
+
+    # {
+    #     "name": "B12",
+    #     "description": "Check if filepath starts with /data",
+    #     "parameters": {
+    #         "type": "object",
+    #         "properties": {
+    #             "filepath": {
+    #                 "type": "string",
+    #                 "pattern": r"^/data/.*",
+    #                 # "description": "Filepath must start with /data to ensure secure access."
+    #             }
+    #         },
+    #         "required": ["filepath"]
+    #     }
+    # },
     {
         "name": "B3",
-        "description": "Download content from a URL and save it to the specified path.",
+        "description": "Fetch data from an API and save it within the /data directory.",
         "parameters": {
             "type": "object",
             "properties": {
-                "url": {
+                "api_url": {
                     "type": "string",
-                    "pattern": r"https?://.*",
-                    "description": "URL to download content from."
-                },
-                "save_path": {
-                    "type": "string",
-                    "pattern": r".*/.*",
-                    "description": "Path to save the downloaded content."
-                }
-            },
-            "required": ["url", "save_path"]
-        }
-    },
-    {
-        "name": "B5",
-        "description": "Execute a SQL query on a specified database file and save the result to an output file.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "db_path": {
-                    "type": "string",
-                    "pattern": r".*/(.*\.db)",
-                    "description": "Path to the SQLite database file."
-                },
-                "query": {
-                    "type": "string",
-                    "description": "SQL query to be executed on the database."
+                    "pattern": "^https?://.*",
+                    "description": "The API endpoint to fetch data from."
                 },
                 "output_filename": {
                     "type": "string",
-                    "pattern": r".*/(.*\.txt)",
-                    "description": "Path to the file where the query result will be saved."
+                    "pattern": "^/data/.*",
+                    "default": "/data/api-output.json",
+                    "description": "Path within /data to save the fetched data."
+                },
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": { "type": "string" },
+                    "description": "Optional headers to include in the API request."
                 }
             },
-            "required": ["db_path", "query", "output_filename"]
+            "required": ["api_url", "output_filename"]
         }
     },
+    {
+        "name": "B4",
+        "description": "Clone a Git repository inside /data and make a commit.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "repo_url": {
+                    "type": "string",
+                    "pattern": "^(https|git)://.*\\.git$",
+                    "description": "URL of the Git repository to clone."
+                },
+                "commit_message": {
+                    "type": "string",
+                    "default": "Automated commit by the agent",
+                    "description": "Message for the commit."
+                }
+            },
+            "required": ["repo_url"]
+        }
+    },
+
+    {
+        "name": "B5",
+        "description": "Run a SQL query on a SQLite or DuckDB database and save the result.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "db_filename": {
+                    "type": "string",
+                    "pattern": "^/data/.*\\.(db|duckdb)$",
+                    "description": "Database file path (must be inside /data/)."
+                },
+                "query": {
+                    "type": "string",
+                    "description": "SQL query to execute. Only SELECT statements are allowed."
+                },
+                "output_filename": {
+                    "type": "string",
+                    "pattern": "^/data/.*\\.csv$",
+                    "description": "Path to save query results (must be inside /data/)."
+                }
+            },
+            "required": ["db_filename", "query", "output_filename"]
+        }
+    },
+
     {
         "name": "B6",
         "description": "Fetch content from a URL and save it to the specified output file.",
@@ -369,58 +440,114 @@ function_definitions_llm = [
     },
     {
         "name": "B7",
-        "description": "Process an image by optionally resizing it and saving the result to an output path.",
+        "description": "Compress or resize an image from /data/ and save the modified version.",
         "parameters": {
             "type": "object",
             "properties": {
-                "image_path": {
+                "input_filename": {
                     "type": "string",
-                    "pattern": r".*/(.*\.(jpg|jpeg|png|gif|bmp))",
-                    "description": "Path to the input image file."
+                    "pattern": "^/data/.*\\.(jpg|jpeg|png)$",
+                    "description": "Path of the image to be compressed/resized (must be in /data/)."
                 },
-                "output_path": {
+                "output_filename": {
                     "type": "string",
-                    "pattern": r".*/.*",
-                    "description": "Path to save the processed image."
+                    "pattern": "^/data/.*\\.(jpg|jpeg|png)$",
+                    "description": "Path to save the modified image (must be in /data/)."
                 },
-                "resize": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer",
-                        "minimum": 1
-                    },
-                    "minItems": 2,
-                    "maxItems": 2,
-                    "description": "Optional. Resize dimensions as [width, height]."
+                "width": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "New width for resizing (optional, ignored if height is provided)."
+                },
+                "height": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "New height for resizing (optional, ignored if width is provided)."
+                },
+                "quality": {
+                    "type": "integer",
+                    "minimum": 10,
+                    "maximum": 100,
+                    "default": 75,
+                    "description": "Compression quality (JPEG only, ignored for PNG)."
                 }
             },
-            "required": ["image_path", "output_path"]
+            "required": ["input_filename", "output_filename"]
         }
     },
     {
-        "name": "B9",
-        "description": "Convert a Markdown file to another format and save the result to the specified output path.",
+        "name": "B8",
+        "description": "Transcribe audio from an MP3 file and save the text.",
         "parameters": {
             "type": "object",
             "properties": {
-                "md_path": {
+                "input_filename": {
                     "type": "string",
-                    "pattern": r".*/(.*\.md)",
-                    "description": "Path to the Markdown file to be converted."
+                    "pattern": "^/data/.*\\.mp3$",
+                    "description": "Path of the MP3 file to be transcribed (must be in /data/)."
                 },
-                "output_path": {
+                "output_filename": {
                     "type": "string",
-                    "pattern": r".*/.*",
-                    "description": "Path where the converted file will be saved."
+                    "pattern": "^/data/.*\\.txt$",
+                    "description": "Path to save the transcribed text file (must be in /data/)."
+                },
+                "model": {
+                    "type": "string",
+                    "enum": ["whisper", "vosk"],
+                    "default": "whisper",
+                    "description": "Speech-to-text model to use (default: whisper)."
                 }
             },
-            "required": ["md_path", "output_path"]
+            "required": ["input_filename", "output_filename"]
         }
+    },
+    {
+    "name": "B9",
+    "description": "Convert a Markdown file to HTML and save the output.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "input_filename": {
+                "type": "string",
+                "pattern": "^/data/.*\\.md$",
+                "description": "Path of the Markdown file to be converted (must be in /data/)."
+            },
+            "output_filename": {
+                "type": "string",
+                "pattern": "^/data/.*\\.html$",
+                "description": "Path to save the converted HTML file (must be in /data/)."
+            }
+        },
+        "required": ["input_filename", "output_filename"]
     }
-
+},
+{
+    "name": "B10",
+    "description": "Filter a CSV file based on a column value and return JSON data.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "csv_filename": {
+                "type": "string",
+                "pattern": "^/data/.*\\.csv$",
+                "description": "Path to the CSV file inside /data/."
+            },
+            "column_name": {
+                "type": "string",
+                "description": "The column to filter on."
+            },
+            "filter_value": {
+                "type": "string",
+                "description": "The value to match in the specified column."
+            }
+        },
+        "required": ["csv_filename", "column_name", "filter_value"]
+    }
+}
 ]
 
 def get_completions(prompt: str):
+    print("Inside get_completions")#Debug
     with httpx.Client(timeout=20) as client:
         response = client.post(
             f"{openai_api_chat}",
@@ -441,8 +568,11 @@ def get_completions(prompt: str):
                     "tool_choice": "auto"
                 },
         )
+
+    print("DId suceessful llm calll")#Debug
     # return response.json()
     print("hlo")#Debug
+    print(response.json())#Debug
     print(response.json()["choices"][0]["message"]["tool_calls"][0]["function"])
     return response.json()["choices"][0]["message"]["tool_calls"][0]["function"]
 
@@ -450,11 +580,8 @@ def get_completions(prompt: str):
 # Placeholder for task execution
 @app.post("/run")
 async def run_task(task: str):
+    print()
     try:
-        # Placeholder logic for executing tasks
-        # Replace with actual logic to parse task and execute steps
-        # Example: Execute task and return success or error based on result
-        # llm_response = function_calling(tast), function_name = A1
         response = get_completions(task)
         print(f"Response THere: {response})")#Debug
         task_code = response['name']
@@ -486,18 +613,29 @@ async def run_task(task: str):
             A10(**json.loads(arguments))
 
 
-        if "B12"== task_code:
-            B12(**json.loads(arguments))
+        if "B1"== task_code:
+            B1(**json.loads(arguments))
+        if "B2"== task_code:
+            B2(**json.loads(arguments))
+        # if "B12"== task_code:
+        #     B12(**json.loads(arguments))
         if "B3" == task_code:
             B3(**json.loads(arguments))
+        if "B4" == task_code:
+            B4(**json.loads(arguments))
         if "B5" == task_code:
             B5(**json.loads(arguments))
         if "B6" == task_code:
             B6(**json.loads(arguments))
         if "B7" == task_code:
             B7(**json.loads(arguments))
+        if "B8" == task_code:
+            B8(**json.loads(arguments))
         if "B9" == task_code:
             B9(**json.loads(arguments))
+        if "B10" == task_code:
+            B10(**json.loads(arguments))
+        
         return {"message": f"{task_code} Task '{task}' executed successfully"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

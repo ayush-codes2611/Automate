@@ -1,6 +1,6 @@
-# /// script
-# requires-python = ">=3.13"
-# dependencies = [
+#
+# depe /// script
+# requires-python = ">=3.13"ndencies = [
 #     "faker",
 #     "httpx",
 #     "numpy",
