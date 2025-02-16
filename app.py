@@ -200,9 +200,9 @@ function_definitions_llm = [
             "required": ["doc_dir_path", "output_file_path"]
         }
     },
-    {
+   {
         "name": "A7",
-        "description": "Extract the sender's email address from a text file and save it to an output file.",
+        "description": "Extract the sender's email address from a text file and save it to an output file. Ensure that the correct argument names are used exactly as specified: 'filename' and 'output_file'. Do NOT alter the argument names (e.g., do NOT use 'output file' instead of 'output_file').",
         "parameters": {
             "type": "object",
             "properties": {
@@ -220,26 +220,30 @@ function_definitions_llm = [
             "required": ["filename", "output_file"]
         }
     },
+
     {
         "name": "A8",
-        "description": "Generate an image representation of credit card details from a text file.",
+        "description": "Extract the financial card number from an image file using an LLM and save it as plain text without spaces.",
         "parameters": {
             "type": "object",
             "properties": {
                 "filename": {
                     "type": "string",
-                    "pattern": r".*/(.*\.txt)",
-                    "default": "/data/credit-card.txt"
+                    "pattern": ".*/(.*\\.txt)",
+                    "default": "/data/credit-card.txt",
+                    "description": "Path to the output text file where the extracted financial card number will be saved."
                 },
                 "image_path": {
                     "type": "string",
-                    "pattern": r".*/(.*\.png)",
-                    "default": "/data/credit-card.png"
+                    "pattern": ".*/(.*\\.png)",
+                    "default": "/data/credit-card.png",
+                    "description": "Path to the image file containing the financial card number to be processed."
                 }
             },
             "required": ["filename", "image_path"]
         }
     },
+
     {
         "name": "A9",
         "description": "Find similar comments from a text file and save them to an output file.",
@@ -438,6 +442,7 @@ def get_completions(prompt: str):
                 },
         )
     # return response.json()
+    print("hlo")#Debug
     print(response.json()["choices"][0]["message"]["tool_calls"][0]["function"])
     return response.json()["choices"][0]["message"]["tool_calls"][0]["function"]
 
@@ -451,12 +456,12 @@ async def run_task(task: str):
         # Example: Execute task and return success or error based on result
         # llm_response = function_calling(tast), function_name = A1
         response = get_completions(task)
-        print(response)
+        print(f"Response THere: {response})")#Debug
         task_code = response['name']
         arguments = response['arguments']
 
-        print("Task:",task_code)
-        print(arguments)
+        print("Task:",task_code)#Debug
+        print(arguments)#Debug
 
 
         if "A1"== task_code:

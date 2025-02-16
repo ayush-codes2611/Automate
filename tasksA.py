@@ -14,11 +14,12 @@ load_dotenv()
 AIPROXY_TOKEN = os.getenv('AIPROXY_TOKEN')
 
 
-def A1(email="23f2001286@ds.study.iitm.ac.in"):
-    print(email)
+def A1(script_url, email="23f2001286@ds.study.iitm.ac.in"):
+    print(email)#Debug
+    print(script_url)#Debug 
     try:
         process = subprocess.Popen(
-            ["uv", "run", "https://raw.githubusercontent.com/sanand0/tools-in-data-science-public/tds-2025-01/project-1/datagen.py", email],
+            ["uv", "run", script_url, email],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
         stdout, stderr = process.communicate()
@@ -28,6 +29,7 @@ def A1(email="23f2001286@ds.study.iitm.ac.in"):
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=f"Error: {e.stderr}")
 # A1()
+
 def A2(prettier_version="prettier@3.4.2", filename="/data/format.md"):
     command = [r"C:\Program Files\nodejs\npx.cmd", prettier_version, "--write", filename]
     try:
@@ -106,7 +108,7 @@ def A7(filename='/data/email.txt', output_file='/data/email-sender.txt'):
     with open(filename, 'r') as file:
         email_content = file.readlines()
 
-    sender_email = "sujay@gmail.com"
+    sender_email = "ayush@gmail.com"
     for line in email_content:
         if "From" == line[:4]:
             sender_email = (line.strip().split(" ")[-1]).replace("<", "").replace(">", "")
@@ -166,7 +168,13 @@ def A8(filename='/data/credit_card.txt', image_path='/data/credit_card.png'):
                 "content": [
                     {
                         "type": "text",
-                        "text": "There is 8 or more digit number is there in this image, with space after every 4 digit, only extract the those digit number without spaces and return just the number without any other characters"
+                        "text": ''' Extract the number from the image that consists of 8 or more digits, where each group of 4 digits is separated by spaces. 
+                                    Return ONLY the number without spaces or any other characters. 
+                                    Ensure that no digit is missing or altered. 
+                                    Double-check for OCR errors like misread digits (e.g., '8' as '3' or '0' as 'O'). 
+                                    If multiple such numbers exist, return the longest one. 
+                                    If there is uncertainty, provide the most likely accurate number.
+                                '''
                     },
                     {
                         "type": "image_url",
